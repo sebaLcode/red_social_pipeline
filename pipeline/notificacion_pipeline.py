@@ -10,7 +10,9 @@ logging.basicConfig(
 )
 
 EVENTOS_VALIDOS = ["like", "comentario", "seguidor"]
-
+PALABRAS_OFENSIVAS = ["malo", "feo", "tonto", "idiota", "estúpido", "imbécil", "pendejo", "gilipollas",
+                      "cretino", "tarado", "zopenco", "bobo", "bruto", "estúpida", "pendeja", "cretina",
+                      "tarada", "zopenca", "boba", "bruta", "aweonao", "reculiao", "maricón", "maricon", "maricona", "hijo de puta", "hija de puta"]
 
 """
     Función para ingesta.
@@ -19,6 +21,17 @@ EVENTOS_VALIDOS = ["like", "comentario", "seguidor"]
 def ingesta_evento(evento):
     logging.info(f"[INGESTA] Evento recibido: {evento}")
     return evento
+
+"""
+    Valida que el mensaje del comentario no contenga palabras ofensivas.
+    Si se detecta una palabra ofensiva, se lanza una excepción para evitar que el comentario sea procesado y se registre un error en la tabla de errores.
+"""
+def validar_comentario_ofensivo(mensaje):
+    mensaje_normalizado = mensaje.lower()
+
+    for palabra in PALABRAS_OFENSIVAS:
+        if palabra in mensaje_normalizado:
+            raise ValueError(f"No se puede enviar el comentario: {mensaje}.")
 
 
 """
@@ -45,6 +58,13 @@ def validar_evento(evento):
     if tipo_evento not in EVENTOS_VALIDOS:
         raise ValueError(f"Tipo de evento no válido: {tipo_evento}")
 
+    if tipo_evento == "comentario":
+        mensaje = evento.get("mensaje", "").strip()
+
+        if mensaje == "":
+            raise ValueError("El comentario no puede estar vacío.")
+
+        validar_comentario_ofensivo(mensaje)
     logging.info(f"[VALIDACIÓN] Evento validado correctamente: {evento['evento_id']}")
 
     return evento
@@ -63,7 +83,7 @@ def transformar_evento(evento):
     texto_comentario = evento.get("mensaje", "").strip()
 
     if tipo_evento == "like":
-        mensaje = f"{usuario_origen} le dio like a tu publicación."
+        mensaje = f"{usuario_origen} le dió like a tu publicación."
     elif tipo_evento == "comentario":
         if texto_comentario:
             mensaje = f"{usuario_origen} comentó en tu publicación: {texto_comentario}"
@@ -136,7 +156,8 @@ def ejecutar_pipeline(evento):
 
     except Exception as e:
         evento_id = evento.get("evento_id", "desconocido")
-        mensaje_error = f"Error en pipeline para evento {evento_id}: {str(e)}"
+        detalle_error = str(e)
+        mensaje_error = f"Error en pipeline para evento {evento_id}: {detalle_error}"
 
         logging.error(f"[ERROR] {mensaje_error}")
 
@@ -146,8 +167,14 @@ def ejecutar_pipeline(evento):
             json.dumps(evento, ensure_ascii=False)
         )
 
+        if detalle_error == "No se puede enviar el comentario ofensivo.":
+            return {
+                "status": "error",
+                "mensaje": "No se puede enviar el comentario ofensivo."
+            }
+
         return {
             "status": "error",
             "mensaje": mensaje_error,
-            "detalles": str(e)
+            "detalles": detalle_error
         }

@@ -28,12 +28,20 @@ def home():
     return {"message": "API funcionando.",
             "pipeline": "ingesta -> validación -> transformación -> carga"}
 
-@app.post("/eventos")
+#Añadir example value squema para la documentación de la API
+@app.post(
+    "/eventos",
+    summary="Procesar evento de red social",
+    description="Recibe un evento (like, comentario o seguidor) y procesa la notificación correspondiente."
+)
 def procesar_evento(evento: dict):
     init_db()
     return ejecutar_pipeline(evento)
 
-@app.get("/notificaciones")
+@app.get(
+    "/notificaciones",
+    summary="Listar notificaciones",
+    description="Devuelve todas las notificaciones procesadas.")
 def listar_notificaciones():
     init_db()
     return get_notificaciones()
