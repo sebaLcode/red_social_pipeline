@@ -31,7 +31,7 @@ def validar_comentario_ofensivo(mensaje):
 
     for palabra in PALABRAS_OFENSIVAS:
         if palabra in mensaje_normalizado:
-            raise ValueError(f"No se puede enviar el comentario: {mensaje}.")
+            raise ValueError(f"No se puede enviar el comentario: \"{mensaje}\" , contiene palabras ofensivas.")
 
 
 """
