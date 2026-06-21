@@ -1,8 +1,9 @@
 import time
 import json
 import logging
-
+import joblib
 from pipeline.db import insert_notification, insert_error
+from pathlib import Path
 
 logging.basicConfig(
     level=logging.INFO,
@@ -10,9 +11,19 @@ logging.basicConfig(
 )
 
 EVENTOS_VALIDOS = ["like", "comentario", "seguidor"]
-PALABRAS_OFENSIVAS = ["malo", "feo", "tonto", "idiota", "estúpido", "imbécil", "pendejo", "gilipollas",
-                      "cretino", "tarado", "zopenco", "bobo", "bruto", "estúpida", "pendeja", "cretina",
-                      "tarada", "zopenca", "boba", "bruta", "aweonao", "reculiao", "maricón", "maricon", "maricona", "hijo de puta", "hija de puta"]
+# PALABRAS_OFENSIVAS = ["malo", "feo", "tonto", "idiota", "estúpido", "imbécil", "pendejo", "gilipollas",
+#                       "cretino", "tarado", "zopenco", "bobo", "bruto", "estúpida", "pendeja", "cretina",
+#                       "tarada", "zopenca", "boba", "bruta", "aweonao", "reculiao", "maricón", "maricon", "maricona", "hijo de puta", "hija de puta"]
+
+#Cargar el modelo de clasificación de comentarios ofensivos
+BASE_DIR = Path(__file__).resolve().parent.parent
+RUTA_MODELO_OFENSIVO = BASE_DIR / "modelosML" / "modelo_ofensivo_svm.pkl"
+RUTA_MODELO_RELEVANCIA = BASE_DIR / "modelosML" / "modelo_relevancia_rf.pkl"
+
+
+modelo_ofensivo_svm = joblib.load(RUTA_MODELO_OFENSIVO)
+
+modelo_relevancia_rf = joblib.load(RUTA_MODELO_RELEVANCIA)
 
 """
     Función para ingesta.
@@ -27,11 +38,21 @@ def ingesta_evento(evento):
     Si se detecta una palabra ofensiva, se lanza una excepción para evitar que el comentario sea procesado y se registre un error en la tabla de errores.
 """
 def validar_comentario_ofensivo(mensaje):
-    mensaje_normalizado = mensaje.lower()
+    
+    prediccion = modelo_ofensivo_svm.predict([mensaje])[0]
+    probabilidad = modelo_ofensivo_svm.predict_proba([mensaje])[0][1]
 
-    for palabra in PALABRAS_OFENSIVAS:
-        if palabra in mensaje_normalizado:
-            raise ValueError(f"No se puede enviar el comentario: {mensaje}.")
+    resultado = "Ofensivo" if prediccion == 1 else "No ofensivo"
+
+    print("Mensaje:", mensaje)
+    print("Clasificación:", resultado)
+    print(f"Probabilidad de ser ofensivo: {probabilidad:.2%}")
+    
+    if resultado == "Ofensivo":
+        raise ValueError(f"No se puede enviar el comentario ofensivo: {mensaje}.")
+    
+    #Log, para ver la probabilidad de ser ofensivo y la clasificación del mensaje
+    logging.info(f"[VALIDACIÓN] Mensaje: {mensaje} | Clasificación: {resultado} | Probabilidad de ser ofensivo: {probabilidad:.2%}")
 
 
 """
@@ -49,6 +70,7 @@ def validar_evento(evento):
         "tipo_evento"
     ]
 
+    #Acá debería ir la integración del modelo de relevancia, pero no sé cómo
     for campo in campos_requeridos:
         if campo not in evento or evento[campo] is None or evento[campo] == "":
             raise ValueError(f"Falta el campo obligatorio: {campo}")
