@@ -70,11 +70,6 @@ def validar_relevancia_evento(eventos_homologos, seguidores_emisor, is_follow):
         raise ValueError(f"El evento no es relevante: {eventos_homologos}.")
     
     logging.info(f"[VALIDACIÓN] Evento: {eventos_homologos} | Clasificación: {resultado} | Probabilidad de ser relevante: {probabilidad:.2%}")
-    mensaje_normalizado = mensaje.lower()
-
-    for palabra in PALABRAS_OFENSIVAS:
-        if palabra in mensaje_normalizado:
-            raise ValueError(f"No se puede enviar el comentario: \"{mensaje}\" , contiene palabras ofensivas.")
 
 
 """
