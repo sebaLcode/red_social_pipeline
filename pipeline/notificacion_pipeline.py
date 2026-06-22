@@ -4,6 +4,7 @@ import logging
 import joblib
 from pipeline.db import insert_notification, insert_error
 from pathlib import Path
+import random
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,6 +56,21 @@ def validar_comentario_ofensivo(mensaje):
     logging.info(f"[VALIDACIÓN] Mensaje: {mensaje} | Clasificación: {resultado} | Probabilidad de ser ofensivo: {probabilidad:.2%}")
 
 
+def validar_relevancia_evento(eventos_homologos, seguidores_emisor, is_follow):
+    prediccion = modelo_relevancia_rf.predict([[eventos_homologos, seguidores_emisor, is_follow]])[0]
+    probabilidad = modelo_relevancia_rf.predict_proba([[eventos_homologos, seguidores_emisor, is_follow]])[0][1]
+
+    resultado = "relevante" if prediccion == 1 else "no relevante"
+    
+    print(f"Eventos homologos: {eventos_homologos}, Seguidores emisor: {seguidores_emisor}, Is follow: {is_follow}")
+    print("Clasificación:", resultado)
+    print(f"Probabilidad de ser relevante: {probabilidad:.2%}")
+    
+    if resultado == "no relevante":
+        raise ValueError(f"El evento no es relevante: {eventos_homologos}.")
+    
+    logging.info(f"[VALIDACIÓN] Evento: {eventos_homologos} | Clasificación: {resultado} | Probabilidad de ser relevante: {probabilidad:.2%}")
+
 """
     Función para validación estructural y semántica.
     Verifica que existan los campos obligatorios y que el tipo de evento sea válido.
@@ -70,25 +86,45 @@ def validar_evento(evento):
         "tipo_evento"
     ]
 
-    #Acá debería ir la integración del modelo de relevancia, pero no sé cómo
     for campo in campos_requeridos:
         if campo not in evento or evento[campo] is None or evento[campo] == "":
             raise ValueError(f"Falta el campo obligatorio: {campo}")
 
     tipo_evento = evento["tipo_evento"].strip().lower()
 
+
     if tipo_evento not in EVENTOS_VALIDOS:
         raise ValueError(f"Tipo de evento no válido: {tipo_evento}")
 
-    if tipo_evento == "comentario":
-        mensaje = evento.get("mensaje", "").strip()
+    else:
+        if tipo_evento == "comentario":
+            mensaje = evento.get("mensaje", "").strip()
 
-        if mensaje == "":
-            raise ValueError("El comentario no puede estar vacío.")
+            if mensaje == "":
+                raise ValueError("El comentario no puede estar vacío.")
 
-        validar_comentario_ofensivo(mensaje)
+            validar_comentario_ofensivo(mensaje)
+            
+            #Rnadom para generar eventos homologos, seguidores del emisor y si el emisor sigue al receptor, para validar la relevancia del evento
+            eventos_homologos = random.randint(0, 100000)
+            seguidores_emisor = random.randint(0, 100000)
+            is_follow = random.choice([True, False])
+            validar_relevancia_evento(eventos_homologos, seguidores_emisor, is_follow)
+        
+        elif tipo_evento == "like":
+            #Random para generar eventos homologos, seguidores del emisor y si el emisor sigue al receptor, para validar la relevancia del evento
+            eventos_homologos = random.randint(0, 100000)
+            seguidores_emisor = random.randint(0, 100000)
+            is_follow = random.choice([True, False])
+            validar_relevancia_evento(eventos_homologos, seguidores_emisor, is_follow)
+        
+        elif tipo_evento == "seguidor":
+            #Random para generar eventos homologos, seguidores del emisor y si el emisor sigue al receptor, para validar la relevancia del evento
+            eventos_homologos = random.randint(0, 100000)
+            seguidores_emisor = random.randint(0, 100000)
+            validar_relevancia_evento(eventos_homologos, seguidores_emisor, True)
+        
     logging.info(f"[VALIDACIÓN] Evento validado correctamente: {evento['evento_id']}")
-
     return evento
 
 
