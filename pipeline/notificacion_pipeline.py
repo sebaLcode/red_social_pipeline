@@ -85,16 +85,45 @@ def validar_evento(evento):
     if not isinstance(evento, dict):
         raise ValueError("El evento debe ser un diccionario.")
 
+    
     campos_requeridos = [
         "evento_id",
         "usuario_origen",
         "usuario_destino",
-        "tipo_evento"
+        "tipo_evento",
+        "eventos_homologos",
+        "seguidores_emisor",
+        "is_follow"
     ]
+    
 
     for campo in campos_requeridos:
         if campo not in evento or evento[campo] is None or evento[campo] == "":
             raise ValueError(f"Falta el campo obligatorio: {campo}")
+        
+    if not isinstance(evento.get("eventos_homologos"), int):
+        raise ValueError("El campo 'eventos_homologos' debe ser un entero.")
+
+    if not isinstance(evento.get("seguidores_emisor"), int):
+        raise ValueError("El campo 'seguidores_emisor' debe ser un entero.")
+
+    #is_follow debe ser convertido a booleano, ya que puede llegar como string desde la API
+    is_follow = evento.get("is_follow")
+    if isinstance(is_follow, str):
+        is_follow = is_follow.lower() == "true"
+
+    if not isinstance(is_follow, bool):
+        raise ValueError("El campo 'is_follow' debe ser un booleano.")
+
+    # Validar que los campos numéricos no sean negativos
+    if evento.get("eventos_homologos") < 0:
+        raise ValueError("El campo 'eventos_homologos' no puede ser negativo.")
+
+    if evento.get("seguidores_emisor") < 0:
+        raise ValueError("El campo 'seguidores_emisor' no puede ser negativo.")
+
+    if evento.get("is_follow") is None:
+        raise ValueError("El campo 'is_follow' no puede ser None.")
 
     tipo_evento = evento["tipo_evento"].strip().lower()
 
@@ -103,6 +132,12 @@ def validar_evento(evento):
         raise ValueError(f"Tipo de evento no válido: {tipo_evento}")
 
     else:
+        
+        #Ahora agregar eventos_homologos, seguidores_emisor e is_follow al evento para que puedan ser usados en la validación de relevancia del evento
+        eventos_homologos = evento.get("eventos_homologos", 0)
+        seguidores_emisor = evento.get("seguidores_emisor", 0)
+        is_follow = evento.get("is_follow", False)
+            
         if tipo_evento == "comentario":
             mensaje = evento.get("mensaje", "").strip()
 
@@ -112,23 +147,23 @@ def validar_evento(evento):
             validar_comentario_ofensivo(mensaje)
             
             #Rnadom para generar eventos homologos, seguidores del emisor y si el emisor sigue al receptor, para validar la relevancia del evento
-            eventos_homologos = random.randint(0, 100000)
-            seguidores_emisor = random.randint(0, 100000)
-            is_follow = random.choice([True, False])
+            # eventos_homologos = random.randint(0, 100000)
+            # seguidores_emisor = random.randint(0, 100000)
+            # is_follow = random.choice([True, False])
             validar_relevancia_evento(eventos_homologos, seguidores_emisor, is_follow)
         
         elif tipo_evento == "like":
             #Random para generar eventos homologos, seguidores del emisor y si el emisor sigue al receptor, para validar la relevancia del evento
-            eventos_homologos = random.randint(0, 100000)
-            seguidores_emisor = random.randint(0, 100000)
-            is_follow = random.choice([True, False])
+            # eventos_homologos = random.randint(0, 100000)
+            # seguidores_emisor = random.randint(0, 100000)
+            # is_follow = random.choice([True, False])
             validar_relevancia_evento(eventos_homologos, seguidores_emisor, is_follow)
         
         elif tipo_evento == "seguidor":
             #Random para generar eventos homologos, seguidores del emisor y si el emisor sigue al receptor, para validar la relevancia del evento
-            eventos_homologos = random.randint(0, 100000)
-            seguidores_emisor = random.randint(0, 100000)
-            validar_relevancia_evento(eventos_homologos, seguidores_emisor, True)
+            # eventos_homologos = random.randint(0, 100000)
+            # seguidores_emisor = random.randint(0, 100000)
+            validar_relevancia_evento(eventos_homologos, seguidores_emisor, is_follow)
         
     logging.info(f"[VALIDACIÓN] Evento validado correctamente: {evento['evento_id']}")
     return evento
