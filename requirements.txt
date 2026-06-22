@@ -5,3 +5,13 @@ sqlalchemy
 pydantic
 cryptography
 requests
+numpy
+pandas
+scikit-learn
+xgboost
+matplotlib
+datasets
+transformers
+python-dotenv
+torch
+joblib

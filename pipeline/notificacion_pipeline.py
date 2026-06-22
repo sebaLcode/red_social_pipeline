@@ -1,8 +1,10 @@
 import time
 import json
 import logging
-
+import joblib
 from pipeline.db import insert_notification, insert_error
+from pathlib import Path
+import random
 
 logging.basicConfig(
     level=logging.INFO,
@@ -10,9 +12,19 @@ logging.basicConfig(
 )
 
 EVENTOS_VALIDOS = ["like", "comentario", "seguidor"]
-PALABRAS_OFENSIVAS = ["malo", "feo", "tonto", "idiota", "estúpido", "imbécil", "pendejo", "gilipollas",
-                      "cretino", "tarado", "zopenco", "bobo", "bruto", "estúpida", "pendeja", "cretina",
-                      "tarada", "zopenca", "boba", "bruta", "aweonao", "reculiao", "maricón", "maricon", "maricona", "hijo de puta", "hija de puta"]
+# PALABRAS_OFENSIVAS = ["malo", "feo", "tonto", "idiota", "estúpido", "imbécil", "pendejo", "gilipollas",
+#                       "cretino", "tarado", "zopenco", "bobo", "bruto", "estúpida", "pendeja", "cretina",
+#                       "tarada", "zopenca", "boba", "bruta", "aweonao", "reculiao", "maricón", "maricon", "maricona", "hijo de puta", "hija de puta"]
+
+#Cargar el modelo de clasificación de comentarios ofensivos
+BASE_DIR = Path(__file__).resolve().parent.parent
+RUTA_MODELO_OFENSIVO = BASE_DIR / "modelosML" / "modelo_ofensivo_svm.pkl"
+RUTA_MODELO_RELEVANCIA = BASE_DIR / "modelosML" / "modelo_relevancia_rf.pkl"
+
+
+modelo_ofensivo_svm = joblib.load(RUTA_MODELO_OFENSIVO)
+
+modelo_relevancia_rf = joblib.load(RUTA_MODELO_RELEVANCIA)
 
 """
     Función para ingesta.
@@ -27,6 +39,37 @@ def ingesta_evento(evento):
     Si se detecta una palabra ofensiva, se lanza una excepción para evitar que el comentario sea procesado y se registre un error en la tabla de errores.
 """
 def validar_comentario_ofensivo(mensaje):
+    
+    prediccion = modelo_ofensivo_svm.predict([mensaje])[0]
+    probabilidad = modelo_ofensivo_svm.predict_proba([mensaje])[0][1]
+
+    resultado = "Ofensivo" if prediccion == 1 else "No ofensivo"
+
+    print("Mensaje:", mensaje)
+    print("Clasificación:", resultado)
+    print(f"Probabilidad de ser ofensivo: {probabilidad:.2%}")
+    
+    if resultado == "Ofensivo":
+        raise ValueError(f"No se puede enviar el comentario ofensivo: {mensaje}.")
+    
+    #Log, para ver la probabilidad de ser ofensivo y la clasificación del mensaje
+    logging.info(f"[VALIDACIÓN] Mensaje: {mensaje} | Clasificación: {resultado} | Probabilidad de ser ofensivo: {probabilidad:.2%}")
+
+
+def validar_relevancia_evento(eventos_homologos, seguidores_emisor, is_follow):
+    prediccion = modelo_relevancia_rf.predict([[eventos_homologos, seguidores_emisor, is_follow]])[0]
+    probabilidad = modelo_relevancia_rf.predict_proba([[eventos_homologos, seguidores_emisor, is_follow]])[0][1]
+
+    resultado = "relevante" if prediccion == 1 else "no relevante"
+    
+    print(f"Eventos homologos: {eventos_homologos}, Seguidores emisor: {seguidores_emisor}, Is follow: {is_follow}")
+    print("Clasificación:", resultado)
+    print(f"Probabilidad de ser relevante: {probabilidad:.2%}")
+    
+    if resultado == "no relevante":
+        raise ValueError(f"El evento no es relevante: {eventos_homologos}.")
+    
+    logging.info(f"[VALIDACIÓN] Evento: {eventos_homologos} | Clasificación: {resultado} | Probabilidad de ser relevante: {probabilidad:.2%}")
     mensaje_normalizado = mensaje.lower()
 
     for palabra in PALABRAS_OFENSIVAS:
@@ -55,18 +98,39 @@ def validar_evento(evento):
 
     tipo_evento = evento["tipo_evento"].strip().lower()
 
+
     if tipo_evento not in EVENTOS_VALIDOS:
         raise ValueError(f"Tipo de evento no válido: {tipo_evento}")
 
-    if tipo_evento == "comentario":
-        mensaje = evento.get("mensaje", "").strip()
+    else:
+        if tipo_evento == "comentario":
+            mensaje = evento.get("mensaje", "").strip()
 
-        if mensaje == "":
-            raise ValueError("El comentario no puede estar vacío.")
+            if mensaje == "":
+                raise ValueError("El comentario no puede estar vacío.")
 
-        validar_comentario_ofensivo(mensaje)
+            validar_comentario_ofensivo(mensaje)
+            
+            #Rnadom para generar eventos homologos, seguidores del emisor y si el emisor sigue al receptor, para validar la relevancia del evento
+            eventos_homologos = random.randint(0, 100000)
+            seguidores_emisor = random.randint(0, 100000)
+            is_follow = random.choice([True, False])
+            validar_relevancia_evento(eventos_homologos, seguidores_emisor, is_follow)
+        
+        elif tipo_evento == "like":
+            #Random para generar eventos homologos, seguidores del emisor y si el emisor sigue al receptor, para validar la relevancia del evento
+            eventos_homologos = random.randint(0, 100000)
+            seguidores_emisor = random.randint(0, 100000)
+            is_follow = random.choice([True, False])
+            validar_relevancia_evento(eventos_homologos, seguidores_emisor, is_follow)
+        
+        elif tipo_evento == "seguidor":
+            #Random para generar eventos homologos, seguidores del emisor y si el emisor sigue al receptor, para validar la relevancia del evento
+            eventos_homologos = random.randint(0, 100000)
+            seguidores_emisor = random.randint(0, 100000)
+            validar_relevancia_evento(eventos_homologos, seguidores_emisor, True)
+        
     logging.info(f"[VALIDACIÓN] Evento validado correctamente: {evento['evento_id']}")
-
     return evento
 
 
