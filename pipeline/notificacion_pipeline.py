@@ -19,7 +19,7 @@ EVENTOS_VALIDOS = ["like", "comentario", "seguidor"]
 #Cargar el modelo de clasificación de comentarios ofensivos
 BASE_DIR = Path(__file__).resolve().parent.parent
 RUTA_MODELO_OFENSIVO = BASE_DIR / "modelosML" / "modelo_ofensivo_svm.pkl"
-RUTA_MODELO_RELEVANCIA = BASE_DIR / "modelosML" / "modelo_relevancia_rf.pkl"
+RUTA_MODELO_RELEVANCIA = BASE_DIR / "modelosML" / "modelo_2_relevancia_rf.pkl"
 
 
 modelo_ofensivo_svm = joblib.load(RUTA_MODELO_OFENSIVO)
