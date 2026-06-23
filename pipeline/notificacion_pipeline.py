@@ -19,7 +19,7 @@ EVENTOS_VALIDOS = ["like", "comentario", "seguidor"]
 #Cargar el modelo de clasificación de comentarios ofensivos
 BASE_DIR = Path(__file__).resolve().parent.parent
 RUTA_MODELO_OFENSIVO = BASE_DIR / "modelosML" / "modelo_ofensivo_svm.pkl"
-RUTA_MODELO_RELEVANCIA = BASE_DIR / "modelosML" / "modelo_2_relevancia_rf.pkl"
+RUTA_MODELO_RELEVANCIA = BASE_DIR / "modelosML" / "modelo_relevancia_rf.pkl"
 
 
 modelo_ofensivo_svm = joblib.load(RUTA_MODELO_OFENSIVO)
@@ -57,7 +57,10 @@ def validar_comentario_ofensivo(mensaje):
 
 
 def validar_relevancia_evento(eventos_homologos, seguidores_emisor, is_follow):
-    prediccion = modelo_relevancia_rf.predict([[eventos_homologos, seguidores_emisor, is_follow]])[0]
+    if seguidores_emisor >490000:
+        prediccion = modelo_relevancia_rf.predict([[eventos_homologos, seguidores_emisor, 1]])[0]
+    else:
+        prediccion = modelo_relevancia_rf.predict([[eventos_homologos, seguidores_emisor, is_follow]])[0]
     probabilidad = modelo_relevancia_rf.predict_proba([[eventos_homologos, seguidores_emisor, is_follow]])[0][1]
 
     resultado = "relevante" if prediccion == 1 else "no relevante"
